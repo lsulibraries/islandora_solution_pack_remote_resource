@@ -20,6 +20,10 @@ function islandora_remote_resource_batch_drush_command() {
         'description' => 'The namespace for objects created by this command.',
         'required' => TRUE,
       ),
+      'list_file' => array(
+        'description' => 'File containing a list of URLs, one per line.',
+        'required' => FALSE,
+      ),
       'parent' => array(
         'description' => 'The PID of the collection to which the generated items should be added.',
         'required' => TRUE,
@@ -30,6 +34,18 @@ function islandora_remote_resource_batch_drush_command() {
       ),
       'parent_relationship_pred' => array(
         'description' => 'The predicate of the relationship to the parent. Defaults to "isMemberOf".',
+        'value' => 'optional',
+      ),
+      'oai_endpoint' => array(
+        'description' => 'URL of the OAI endpoint.',
+        'value' => 'optional',
+      ),
+      'oai_remote_host' => array(
+        'description' => 'Base URL of the OAI endpoint.',
+        'value' => 'optional',
+      ),
+      'oai_set' => array(
+        'description' => 'Set id.',
         'value' => 'optional',
       ),
     ),
@@ -76,14 +92,22 @@ function drush_islandora_remote_resource_batch_preprocess() {
   $connection = islandora_get_tuque_connection();
   $parameters = array(
     'namespace' => drush_get_option('namespace'),
-    'target' => drush_get_option('target'),
+    'target' => drush_get_option('scan_target'),
+    'list' => drush_get_option('list_file'),
     'parent' => drush_get_option('parent'),
     'parent_relationship_uri' => drush_get_option('parent_relationship_uri', 'info:fedora/fedora-system:def/relations-external#'),
     'parent_relationship_pred' => drush_get_option('parent_relationship_pred', 'isMemberOf'),
+    'oai_endpoint' => drush_get_option('oai_endpoint'),
+    'oai_remote_host' => drush_get_option('oai_remote_host'),
+    'oai_set' => drush_get_option('oai_set'),
   );
 
   // Run the preprocessor.
-  $preprocessor = new IslandoraRemoteResourceBatchPreprocessor($connection, $parameters);
+  $oaiBased = isset($parameters['oai_endpoint']) && isset($parameters['oai_remote_host']) && isset($parameters['oai_set']);
+  $listBased = isset($parameters['list']);
+
+  $class = $oaiBased || $listBased ? 'IslandoraRemoteResourceBatchListPreprocessor' : 'IslandoraRemoteResourceBatchPreprocessor';
+  $preprocessor = new $class($connection, $parameters);
   $preprocessed = islandora_batch_handle_preprocessor($preprocessor);
   drush_log(t("SetId: @s", array('@s' => $preprocessor->getSetId())), "ok");
 }

@@ -6,4 +6,6 @@ dependencies[] = islandora_solution_pack_remote_resource
 version = 7.x-dev
 core = 7.x
 files[] = includes/preprocessor.inc
+files[] = includes/listPreprocessor.inc
 files[] = includes/object.inc
+files[] = includes/listObject.inc
