@@ -1,6 +1,5 @@
 <?php
 
-require_once 'includes/preprocessor.inc';
 /**
  * @file
  * Implementation of Drush hooks.
