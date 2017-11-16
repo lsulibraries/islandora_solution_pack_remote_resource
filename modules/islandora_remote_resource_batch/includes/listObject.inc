@@ -1,6 +1,6 @@
 <?php
 
-class IslandoraRemoteResourceBatchListObject extends IslandoraBatchObject {
+class IslandoraRemoteResourceDoraListBatchObject extends IslandoraBatchObject {
   protected $url;
   protected $preprocessorParameters;
 

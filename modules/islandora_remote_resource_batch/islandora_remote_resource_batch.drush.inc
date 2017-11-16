@@ -1,5 +1,6 @@
 <?php
 
+require_once 'includes/preprocessor.inc';
 /**
  * @file
  * Implementation of Drush hooks.
@@ -46,6 +47,10 @@ function islandora_remote_resource_batch_drush_command() {
       ),
       'oai_set' => array(
         'description' => 'Set id.',
+        'value' => 'optional',
+      ),
+      'oai_pid_index' => array(
+        'description' => 'When exploding oai identifier value by ":", which array index holds the pid ?',
         'value' => 'optional',
       ),
     ),
@@ -100,16 +105,34 @@ function drush_islandora_remote_resource_batch_preprocess() {
     'oai_endpoint' => drush_get_option('oai_endpoint'),
     'oai_remote_host' => drush_get_option('oai_remote_host'),
     'oai_set' => drush_get_option('oai_set'),
+    'oai_pid_index' => drush_get_option('oai_pid_index', 2),
   );
 
   // Run the preprocessor.
-  $oaiBased = isset($parameters['oai_endpoint']) && isset($parameters['oai_remote_host']) && isset($parameters['oai_set']);
-  $listBased = isset($parameters['list']);
-
-  $class = $oaiBased || $listBased ? 'IslandoraRemoteResourceBatchListPreprocessor' : 'IslandoraRemoteResourceBatchPreprocessor';
+  $class = get_preprocessor($parameters);
   $preprocessor = new $class($connection, $parameters);
   $preprocessed = islandora_batch_handle_preprocessor($preprocessor);
   drush_log(t("SetId: @s", array('@s' => $preprocessor->getSetId())), "ok");
+}
+
+function get_preprocessor($parameters) {
+  if (isset($parameters['target'])) {
+    return 'IslandoraRemoteResourceBatchPreprocessor';
+  }
+  
+  $oaiBased = isset($parameters['oai_endpoint']) && isset($parameters['oai_remote_host']) && isset($parameters['oai_set']);
+  $listBased = isset($parameters['list']);
+  if ($oaiBased xor $listBased) {
+    if ($oaiBased) {
+      return 'IslandoraRemoteResourceOaiDoraBatchPreprocessor';
+    }
+    else {
+      return 'IslandoraRemoteResourceListBatchPreprocessor';
+    }
+  }
+  else {
+    throw new Exception ("Only one of ('target' || 'list' || 'oai*') can be set.");
+  }
 }
 
 /**
@@ -128,7 +151,6 @@ function drush_islandora_remote_resource_batch_preprocess_validate() {
   $parent = drush_get_option('parent');
   $object = islandora_object_load($parent);
   if (!$object) {
-    return drush_set_error('This is not a valid parent', dt('The specified parent (@parent) was unable to be loaded.',
-      array('@parent' => $parent)));
+    return drush_set_error('This is not a valid parent', dt('The specified parent (@parent) was unable to be loaded.', array('@parent' => $parent)));
   }
 }

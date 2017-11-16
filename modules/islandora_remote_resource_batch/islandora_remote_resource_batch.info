@@ -9,3 +9,4 @@ files[] = includes/preprocessor.inc
 files[] = includes/listPreprocessor.inc
 files[] = includes/object.inc
 files[] = includes/listObject.inc
+files[] = includes/IslandoraRemoteResourceOaiDoraBatchPreprocessor.php
