@@ -11,6 +11,27 @@
 function islandora_remote_resource_batch_drush_command() {
   $items = array();
 
+  $items['islandora_remote_resource_create_oai_collections'] = array(
+    'aliases' => array('irrccoai'),
+    'description' => 'Create local collections based on the set of collections returned from an oai endpoint.',
+    'drupal dependencies' => array('islandora', 'islandora_basic_collection', 'islandora_solution_pack_remote_resource', 'islandora_utils'),
+    'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_LOGIN,
+    'options' => array(
+      'oai_endpoint' => array(
+        'description' => 'URL of the OAI endpoint.',
+        'value' => 'required',
+      ),
+      'oai_remote_host' => array(
+        'description' => 'Base URL of the OAI endpoint.',
+        'value' => 'required',
+      ),
+      'oai_endpoint_protocol' => array(
+        'description' => "whether to use http (default) or https.",
+        'value' => 'optional',
+      ),
+    )
+  );
+  
   $items['islandora_remote_resource_batch_preprocess'] = array(
     'aliases' => array('irrbp'),
     'description' => 'Preprocess Islandora Remote Resource objects into batch queue entries.',
@@ -151,5 +172,34 @@ function drush_islandora_remote_resource_batch_preprocess_validate() {
   $object = islandora_object_load($parent);
   if (!$object) {
     return drush_set_error('This is not a valid parent', dt('The specified parent (@parent) was unable to be loaded.', array('@parent' => $parent)));
+  }
+}
+
+function drush_islandora_remote_resource_batch_islandora_remote_resource_create_oai_collections() {
+  $ssl = drush_get_option('oai_endpoint_protocol', 'http');
+  if(!in_array(strtolower($ssl), array('http', 'https'))) {
+    drush_die("Illegal value $ssl given for oai_endpoint_protocol; must be one of [http|https]", 'error');
+  }
+  $oai = drush_get_option('oai_endpoint');
+  $url = sprintf("http://%s?verb=ListSets", $oai);
+
+  $xml = simplexml_load_string(file_get_contents($url));
+  $ns = $xml->getNamespaces(TRUE);
+  foreach($ns as $alias => $uri) {
+    $xml->registerXPathNamespace($alias, $uri);
+  }
+  $xml->registerXPathNamespace('oai', "http://www.openarchives.org/OAI/2.0/");
+  $sets = $xml->xpath('//oai:set');
+
+  foreach($sets as $set) {
+    $description_wrapper = $set->setDescription->children('oai_dc', TRUE);
+    $description = $description_wrapper->children('dc', TRUE);
+  
+    module_load_include('inc', 'islandora_utils', 'includes/util');
+    $namespace = str_replace('_', ':', $set->setSpec);
+    if($namespace == 'islandora:root') {
+      continue;
+    }
+    islandora_utils_ingest_collection($description->title, $description->description, $namespace, 'islandora:root');
   }
 }
