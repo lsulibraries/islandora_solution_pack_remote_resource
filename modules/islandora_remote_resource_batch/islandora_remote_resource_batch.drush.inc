@@ -31,6 +31,35 @@ function islandora_remote_resource_batch_drush_command() {
       ),
     )
   );
+
+  $items['islandora_remote_resource_fetch_oai_members'] = array(
+    'aliases' => array('irrfoaim'),
+    'description' => "Fetch the items for a given remote collection.",
+    'drupal_dependencies' => array('islandora', 'islandora_basic_collection', 'islandora_solution_pack_remote_resource'),
+    'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_LOGIN,
+    'options' => array(
+      'oai_endpoint' => array(
+        'description' => 'URL of the OAI endpoint.',
+        'value' => 'required',
+      ),
+      'oai_remote_host' => array(
+        'description' => 'Base URL of the OAI endpoint.',
+        'value' => 'required',
+      ),
+      'oai_endpoint_protocol' => array(
+        'description' => "whether to use http (default) or https.",
+        'value' => 'optional',
+      ),
+      'oai_set' => array(
+        'description' => 'OAI set identifier',
+        'value' => 'required'
+      ),
+      'target_collection' => array(
+        'description' => 'PID of local collection where the items should be ingested.',
+        'value' => 'required',
+      ),
+    ),
+  );
   
   $items['islandora_remote_resource_batch_preprocess'] = array(
     'aliases' => array('irrbp'),
@@ -176,12 +205,10 @@ function drush_islandora_remote_resource_batch_preprocess_validate() {
 }
 
 function drush_islandora_remote_resource_batch_islandora_remote_resource_create_oai_collections() {
-  $ssl = drush_get_option('oai_endpoint_protocol', 'http');
-  if(!in_array(strtolower($ssl), array('http', 'https'))) {
-    drush_die("Illegal value $ssl given for oai_endpoint_protocol; must be one of [http|https]", 'error');
-  }
+  $proto = drush_get_option('oai_endpoint_protocol', 'http');
+  check_protocol($proto);
   $oai = drush_get_option('oai_endpoint');
-  $url = sprintf("http://%s?verb=ListSets", $oai);
+  $url = sprintf("%s://%s?verb=ListSets", $proto, $oai);
 
   $xml = simplexml_load_string(file_get_contents($url));
   $ns = $xml->getNamespaces(TRUE);
@@ -201,5 +228,22 @@ function drush_islandora_remote_resource_batch_islandora_remote_resource_create_
       continue;
     }
     islandora_utils_ingest_collection($description->title, $description->description, $namespace, 'islandora:root');
+  }
+}
+
+function drush_islandora_remote_resource_fetch_oai_members() {
+  $proto = drush_get_option('oai_endpoint_protocol', 'http');
+  check_protocol($proto);
+
+  $set = drush_get_option('oai_set');
+  $oai = drush_get_option('oai_endpoint');
+  $url = sprintf("%s://%s?verb=ListIdentifiers&metadataFormat=mods&set=%s", $proto, $oai, $set);
+  var_dump(file_get_contents($url));
+  $xml = simplexml_load_string(file_get_contents($url));
+}
+
+function check_protocol($proto) {
+  if(!in_array(strtolower($proto), array('http', 'https'))) {
+    drush_die("Illegal value $proto given for oai_endpoint_protocol; must be one of [http|https]", 'error');
   }
 }
