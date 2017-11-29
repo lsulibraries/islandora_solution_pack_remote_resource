@@ -231,15 +231,16 @@ function drush_islandora_remote_resource_batch_islandora_remote_resource_create_
   }
 }
 
-function drush_islandora_remote_resource_fetch_oai_members() {
+function drush_islandora_remote_resource_batch_islandora_remote_resource_fetch_oai_members() {
   $proto = drush_get_option('oai_endpoint_protocol', 'http');
   check_protocol($proto);
 
   $set = drush_get_option('oai_set');
   $oai = drush_get_option('oai_endpoint');
-  $url = sprintf("%s://%s?verb=ListIdentifiers&metadataFormat=mods&set=%s", $proto, $oai, $set);
-  var_dump(file_get_contents($url));
+  $url = sprintf("%s://%s?verb=ListIdentifiers&metadataPrefix=mods&set=%s", $proto, $oai, $set);
   $xml = simplexml_load_string(file_get_contents($url));
+  $xml->registerXPathNamespace('oai', "http://www.openarchives.org/OAI/2.0/");
+
 }
 
 function check_protocol($proto) {
