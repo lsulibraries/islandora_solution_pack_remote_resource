@@ -227,7 +227,15 @@ function drush_islandora_remote_resource_batch_islandora_remote_resource_create_
     if($namespace == 'islandora:root') {
       continue;
     }
-    islandora_utils_ingest_collection($description->title, $description->description, $namespace, 'islandora:root');
+    $cmodels = array(
+      array(
+        'dsid' => '',
+        'name' => 'Islandora Remote Resource Content Model',
+        'namespace' => $namespace,
+        'pid' => 'islandora:sp_remote_resource'
+      ),
+    );
+    islandora_utils_ingest_collection($description->title, $description->description, $namespace, 'islandora:root', $cmodels);
   }
 }
 

@@ -19,7 +19,7 @@ class IslandoraRemoteResourceOaiDoraBatchPreprocessor extends IslandoraRemoteRes
         $urls[] = sprintf("%s/islandora/object/%s", $remote_host, preg_replace('/_/', ':', $pid));
       }
 
-      $resumptionToken = $xml->xpath('//o:resumptionToken');
+      $resumptionToken = $xml->ListIdentifiers->resumptionToken;
       if($resumptionToken) {
         $resumeUrl = sprintf('%s?verb=ListIdentifiers&resumptionToken=%s', $this->parameters['oai_endpoint'], $resumptionToken);
         $recordsList = file_get_contents($resumeUrl);
