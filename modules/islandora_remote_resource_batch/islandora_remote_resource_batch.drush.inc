@@ -218,25 +218,98 @@ function drush_islandora_remote_resource_batch_islandora_remote_resource_create_
   $xml->registerXPathNamespace('oai', "http://www.openarchives.org/OAI/2.0/");
   $sets = $xml->xpath('//oai:set');
 
+  $raw_collections = array();
   foreach($sets as $set) {
     $description_wrapper = $set->setDescription->children('oai_dc', TRUE);
     $description = $description_wrapper->children('dc', TRUE);
   
     module_load_include('inc', 'islandora_utils', 'includes/util');
-    $namespace = str_replace('_', ':', $set->setSpec);
-    if($namespace == 'islandora:root') {
+    $pid = str_replace("_", ":", $set->setSpec);
+    $local_pid = conformant_pid($pid) ? $pid : str_replace("_", "-", $set->setSpec) . ':collection';
+    if($local_pid == 'islandora:root') {
       continue;
     }
     $cmodels = array(
       array(
         'dsid' => '',
         'name' => 'Islandora Remote Resource Content Model',
-        'namespace' => $namespace,
+        'namespace' => $local_pid,
         'pid' => 'islandora:sp_remote_resource'
       ),
     );
-    islandora_utils_ingest_collection($description->title, $description->description, $namespace, 'islandora:root', $cmodels);
+
+    $parent_local_pid = $parent = get_parent_collections($set->setSpec)[0];
+    if (empty($parent)) {
+      // if we can't get at the RELS (blocked or other), skip...
+      continue;
+    }
+
+    if ($parent != 'islandora:root') {
+      echo "checking $parent";
+      $conformant = array_pop(explode(':', $parent)) == 'collection';
+      $parent_local_pid = $conformant ? $parent : str_replace(':', '-', $parent) . ':collection';
+    }
+
+    $raw_collections[] = array(
+      'title' => $description->title,
+      'description' => $description->description,
+      'pid' => $local_pid,
+      'parent' => $parent_local_pid,
+      'cmodels' => $cmodels,
+      );
   }
+  
+  if(empty($raw_collections)) {
+    echo "no collections!!";
+    return;
+  }
+
+  reset($raw_collections);
+  $c = current($raw_collections);
+  do {
+    printf("evaluating %s\n", $c['parent']);
+    if ($c['parent'] == 'islandora:root' || islandora_object_load($c['parent'])) {
+      islandora_utils_ingest_collection($c['title'], $c['description'], $c['pid'], $c['parent'], $c['cmodels']);
+      printf("would have ingested %s\n", $c['title']);
+      $key = key($raw_collections);
+
+      unset($raw_collections[$key]);
+      $c = next($raw_collections);
+      if (!$c) {
+        $c = reset($raw_collections);
+      }
+    }
+    else {
+      printf("nested collection!!!");
+    }
+  } while (count($raw_collections) > 1);
+}
+
+function conformant_pid ($pid) {
+  return array_pop(explode(':', $pid)) == 'collection';
+}
+
+function get_parent_collections($setspec) {
+    $proto = drush_get_option('oai_endpoint_protocol', 'http');
+    $host = drush_get_option('oai_remote_host');
+
+    $remote_pid = str_replace('_', ':', $setspec);
+    $rels_url = sprintf("%s://%s/islandora/object/%s/datastream/RELS-EXT/view", $proto, $host, $remote_pid);
+    $rels = simplexml_load_string(file_get_contents($rels_url));
+    if ($rels == FALSE) {
+      return array();
+    }
+
+    $rels->registerXPathNamespace('fedora', 'info:fedora/fedora-system:def/relations-external#');
+    $rels->registerXPathNamespace('rdf', 'http://www.w3.org/1999/02/22-rdf-syntax-ns#');
+    $parents = $rels->xpath('//fedora:isMemberOfCollection/@rdf:resource');
+    $parent_pids = array();
+
+    foreach($parents as $parent) {
+      $trimmed_parent = substr($parent['resource'], 12);
+      $parent_pids[] = $trimmed_parent;
+    }
+    return $parent_pids;
 }
 
 function drush_islandora_remote_resource_batch_islandora_remote_resource_fetch_oai_members() {
