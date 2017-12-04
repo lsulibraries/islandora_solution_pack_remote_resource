@@ -83,7 +83,7 @@ function islandora_remote_resource_batch_drush_command() {
       ),
     ),
   );
-  
+
   $items['islandora_remote_resource_batch_preprocess'] = array(
     'aliases' => array('irrbp'),
     'description' => 'Preprocess Islandora Remote Resource objects into batch queue entries.',
@@ -191,7 +191,7 @@ function get_preprocessor($parameters) {
   if (isset($parameters['target'])) {
     return 'IslandoraRemoteResourceBatchPreprocessor';
   }
-  
+
   $oaiBased = isset($parameters['oai_endpoint']) && isset($parameters['oai_remote_host']) && isset($parameters['oai_set']);
   $listBased = isset($parameters['list']);
   if ($oaiBased xor $listBased) {
@@ -203,7 +203,7 @@ function get_preprocessor($parameters) {
     }
   }
   else {
-    throw new Exception ("Only one of ('target' || 'list' || 'oai*') can be set.");
+    throw new Exception("Only one of ('target' || 'list' || 'oai*') can be set.");
   }
 }
 
@@ -254,21 +254,21 @@ function drush_islandora_remote_resource_batch_islandora_remote_resource_create_
 
   $xml = simplexml_load_string(file_get_contents($url));
   $ns = $xml->getNamespaces(TRUE);
-  foreach($ns as $alias => $uri) {
+  foreach ($ns as $alias => $uri) {
     $xml->registerXPathNamespace($alias, $uri);
   }
   $xml->registerXPathNamespace('oai', "http://www.openarchives.org/OAI/2.0/");
   $sets = $xml->xpath('//oai:set');
 
   $raw_collections = array();
-  foreach($sets as $set) {
+  foreach ($sets as $set) {
     $description_wrapper = $set->setDescription->children('oai_dc', TRUE);
     $description = $description_wrapper->children('dc', TRUE);
-  
+
     module_load_include('inc', 'islandora_utils', 'includes/util');
     $pid = str_replace("_", ":", $set->setSpec);
     $local_pid = conformant_pid($pid) ? $pid : str_replace("_", "-", $set->setSpec) . ':collection';
-    if($local_pid == 'islandora:root') {
+    if ($local_pid == 'islandora:root') {
       continue;
     }
     $cmodels = array(
@@ -298,10 +298,10 @@ function drush_islandora_remote_resource_batch_islandora_remote_resource_create_
       'pid' => $local_pid,
       'parent' => $parent_local_pid,
       'cmodels' => $cmodels,
-      );
+    );
   }
-  
-  if(empty($raw_collections)) {
+
+  if (empty($raw_collections)) {
     echo "no collections!!";
     return;
   }
@@ -327,31 +327,31 @@ function drush_islandora_remote_resource_batch_islandora_remote_resource_create_
   } while (count($raw_collections) > 1);
 }
 
-function conformant_pid ($pid) {
+function conformant_pid($pid) {
   return array_pop(explode(':', $pid)) == 'collection';
 }
 
 function get_parent_collections($setspec) {
-    $proto = drush_get_option('oai_endpoint_protocol', 'http');
-    $host = drush_get_option('oai_remote_host');
+  $proto = drush_get_option('oai_endpoint_protocol', 'http');
+  $host = drush_get_option('oai_remote_host');
 
-    $remote_pid = str_replace('_', ':', $setspec);
-    $rels_url = sprintf("%s://%s/islandora/object/%s/datastream/RELS-EXT/view", $proto, $host, $remote_pid);
-    $rels = simplexml_load_string(file_get_contents($rels_url));
-    if ($rels == FALSE) {
-      return array();
-    }
+  $remote_pid = str_replace('_', ':', $setspec);
+  $rels_url = sprintf("%s://%s/islandora/object/%s/datastream/RELS-EXT/view", $proto, $host, $remote_pid);
+  $rels = simplexml_load_string(file_get_contents($rels_url));
+  if ($rels == FALSE) {
+    return array();
+  }
 
-    $rels->registerXPathNamespace('fedora', 'info:fedora/fedora-system:def/relations-external#');
-    $rels->registerXPathNamespace('rdf', 'http://www.w3.org/1999/02/22-rdf-syntax-ns#');
-    $parents = $rels->xpath('//fedora:isMemberOfCollection/@rdf:resource');
-    $parent_pids = array();
+  $rels->registerXPathNamespace('fedora', 'info:fedora/fedora-system:def/relations-external#');
+  $rels->registerXPathNamespace('rdf', 'http://www.w3.org/1999/02/22-rdf-syntax-ns#');
+  $parents = $rels->xpath('//fedora:isMemberOfCollection/@rdf:resource');
+  $parent_pids = array();
 
-    foreach($parents as $parent) {
-      $trimmed_parent = substr($parent['resource'], 12);
-      $parent_pids[] = $trimmed_parent;
-    }
-    return $parent_pids;
+  foreach ($parents as $parent) {
+    $trimmed_parent = substr($parent['resource'], 12);
+    $parent_pids[] = $trimmed_parent;
+  }
+  return $parent_pids;
 }
 
 function drush_islandora_remote_resource_batch_islandora_remote_resource_fetch_oai_members() {
@@ -363,11 +363,10 @@ function drush_islandora_remote_resource_batch_islandora_remote_resource_fetch_o
   $url = sprintf("%s://%s?verb=ListIdentifiers&metadataPrefix=mods&set=%s", $proto, $oai, $set);
   $xml = simplexml_load_string(file_get_contents($url));
   $xml->registerXPathNamespace('oai', "http://www.openarchives.org/OAI/2.0/");
-
 }
 
 function check_protocol($proto) {
-  if(!in_array(strtolower($proto), array('http', 'https'))) {
+  if (!in_array(strtolower($proto), array('http', 'https'))) {
     drush_die("Illegal value $proto given for oai_endpoint_protocol; must be one of [http|https]", 'error');
   }
 }
