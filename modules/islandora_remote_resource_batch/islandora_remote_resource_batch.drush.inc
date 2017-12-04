@@ -10,7 +10,30 @@
  */
 function islandora_remote_resource_batch_drush_command() {
   $items = array();
-
+  $items['islandora_remote_resource_create_collection'] = array(
+    'aliases' => array('irrcc'),
+    'description' => 'Create local collection set to receive Remote Resource content.',
+    'drupal dependencies' => array('islandora', 'islandora_basic_collection', 'islandora_solution_pack_remote_resource', 'islandora_utils'),
+    'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_LOGIN,
+    'options' => array(
+      'pid' => array(
+        'description' => 'Full PID for the collection',
+        'value' => 'required',
+      ),
+      'parent' => array(
+        'description' => "Collection to which this one should belong; defaults to islandora:root.",
+        'value' => 'required',
+      ),
+      'title' => array(
+        'description' => "Title of the collection.",
+        'value' => 'optional',
+      ),
+      'description' => array(
+        'description' => "Description of the collection.",
+        'value' => 'optional',
+      )
+    ),
+  );
   $items['islandora_remote_resource_create_oai_collections'] = array(
     'aliases' => array('irrccoai'),
     'description' => 'Create local collections based on the set of collections returned from an oai endpoint.',
@@ -202,6 +225,25 @@ function drush_islandora_remote_resource_batch_preprocess_validate() {
   if (!$object) {
     return drush_set_error('This is not a valid parent', dt('The specified parent (@parent) was unable to be loaded.', array('@parent' => $parent)));
   }
+}
+
+function drush_islandora_remote_resource_batch_islandora_remote_resource_create_collection() {
+  $title = drush_get_option('title', 'no title given');
+  $descr = drush_get_option('description', 'no description given');
+  $pid = drush_get_option('pid');
+  $rent = drush_get_option('parent', 'islandora:root');
+
+  $cmodels = array(
+    array(
+      'dsid' => '',
+      'name' => 'Islandora Remote Resource Content Model',
+      'namespace' => $local_pid,
+      'pid' => 'islandora:sp_remote_resource'
+    ),
+  );
+
+  module_load_include('inc', 'islandora_utils', 'includes/util');
+  islandora_utils_ingest_collection($title, $descr, $pid, $rent, $cmodels);
 }
 
 function drush_islandora_remote_resource_batch_islandora_remote_resource_create_oai_collections() {
