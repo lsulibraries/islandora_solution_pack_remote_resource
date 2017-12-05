@@ -18,7 +18,6 @@ class IslandoraRemoteResourceDoraListBatchObject extends IslandoraBatchObject {
    */
   public function batchProcess() {
     module_load_include('inc', 'islandora_remote_resource_batch', 'includes/utilities');
-
     // OBJ datastream.
     $obj = $this->constructDatastream('OBJ', 'M');
     $obj->label = 'Remote URL';

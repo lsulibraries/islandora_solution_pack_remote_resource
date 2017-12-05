@@ -7,7 +7,6 @@ class IslandoraRemoteResourceListBatchPreprocessor extends IslandoraRemoteResour
 
     $added = array();
     $urls = $this->getUrlList();
-
     foreach ($urls as $remote_url) {
       // We only want to ingest objects that aren't already in our repo.
       if (!islandora_remote_resource_batch_query_solr($remote_url)) {

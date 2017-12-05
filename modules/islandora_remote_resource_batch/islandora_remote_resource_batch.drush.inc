@@ -10,6 +10,7 @@
  */
 function islandora_remote_resource_batch_drush_command() {
   $items = array();
+
   $items['islandora_remote_resource_ingest_remote_oai_collection'] = array(
     'aliases' => array('irrcc'),
     'description' => 'Create local collection set to receive Remote Resource content.',
@@ -37,13 +38,17 @@ function islandora_remote_resource_batch_drush_command() {
         'description' => 'OAI set identifier',
         'value' => 'required',
       ),
-      'target_collection' => array(
+      'parent' => array(
         'description' => 'PID of local collection where the items should be ingested.',
         'value' => 'required',
       ),
-      'parent_collection' => array(
+      'parent_parent_collection' => array(
         'description' => "Collection to which this one should belong [defaults to islandora:root].",
         'value' => "optional",
+      ),
+      'namespace' => array(
+        'description' => 'The namespace for objects ingested into the collection.',
+        'required' => TRUE,
       ),
     ),
   );
@@ -284,56 +289,37 @@ function drush_islandora_remote_resource_batch_islandora_remote_resource_create_
 }
 
 function drush_islandora_remote_resource_batch_islandora_remote_resource_ingest_remote_oai_collection() {
-  $set   = drush_get_option('oai_set');
-  $oai   = drush_get_option('oai_endpoint');
-  $host  = drush_get_option('oai_host');
-  $proto = drush_get_option('oai_endpoint_protocol', 'http');
-  $coll  = drush_get_option('target_collection');
-  $rent  = drush_get_option('parent_collection', 'islandora:root');
-
-  $collection_exists = islandora_object_load($coll);
-  if (!$collection_exists) {
-    $query_url = oai_query($proto, $host, $oai, 'ListSets');
-    try {
-      $list_sets = file_get_contents($query_url);
-    }
-    catch (Exception $e) {
-      drush_log("Error fetching remote file $query_url.", 'error');
-    }
-    $xml = simplexml_load_string($list_sets);
-    $xml->registerXPathNamespace('oai', "http://www.openarchives.org/OAI/2.0/");
-    $expr = "//oai:set";
-    $sets = $xml->xpath($expr);
-    foreach ($sets as $s) {
-      if ($s->setSpec == $set) {
-        break;
-      }
-    }
-    $description_wrapper = $s->setDescription->children('oai_dc', TRUE);
-    $description = $description_wrapper->children('dc', TRUE);
+  $remote_collection = new OaiCollection(
+      drush_get_option('oai_set'),
+      drush_get_option('oai_endpoint_protocol', 'http'),
+      drush_get_option('oai_host'),
+      drush_get_option('oai_endpoint')
+      );
+  $parameters = array(
+    'parent' => drush_get_option('parent'),
+    'parent_parent_collection' => drush_get_option('parent_parent_collection', 'islandora:root'),
+    'namespace' => drush_get_option('namespace'),
+  );
+  $existing_collection = islandora_object_load($parameters['parent']);
+  if (!$existing_collection) {
     module_load_include('inc', 'islandora_utils', 'includes/util');
-    islandora_utils_ingest_collection($description->title, $description->description, $coll, $rent, islandora_remote_resource_batch_get_cmodel($coll));
+    islandora_utils_ingest_collection(
+        $remote_collection->title,
+        $remote_collection->description,
+        $parameters['parent'],
+        $parameters['parent_parent_collection'],
+        islandora_remote_resource_batch_get_cmodel($parameters['namespace'])
+        );
   }
 
-}
-
-function oai_query($proto, $host, $oai, $verb, $metaPrefix = 'mods', $set = NULL, $token = NULL) {
-  $base = sprintf("%s://%s%s", $proto, $host, $oai);
-  $query = sprintf("%s?verb=%s", $base, $verb);
-
-  if ($token) {
-    return sprintf("%s&resumptionToken=%s");
-  }
-  elseif ($verb == 'ListSets') {
-    return $query;
-  }
-  else {
-    $query = sprintf("%s&metadataPrefix=%s", $query, $metaPrefix);
-    if ($set) {
-      $query = sprintf("%s&set=%s", $query, $set);
-    }
-    return $query;
-  }
+  // Run the preprocessor.
+  drupal_static_reset('islandora_get_tuque_connection');
+  $preprocessor = new IslandoraRemoteResourceOaiCollectionBatchPreprocessor(
+      islandora_get_tuque_connection(),
+      $parameters,
+      $remote_collection);
+  $preprocessed = islandora_batch_handle_preprocessor($preprocessor);
+  drush_log(t("SetId: @s", array('@s' => $preprocessor->getSetId())), "ok");
 }
 
 function islandora_remote_resource_batch_get_cmodel($namespace) {
@@ -352,9 +338,9 @@ function drush_islandora_remote_resource_batch_islandora_remote_resource_create_
   check_protocol($proto);
   $oai = drush_get_option('oai_endpoint');
   $url = sprintf("%s://%s?verb=ListSets", $proto, $oai);
-
   $xml = simplexml_load_string(file_get_contents($url));
   $ns = $xml->getNamespaces(TRUE);
+
   foreach ($ns as $alias => $uri) {
     $xml->registerXPathNamespace($alias, $uri);
   }
