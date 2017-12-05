@@ -10,6 +10,43 @@
  */
 function islandora_remote_resource_batch_drush_command() {
   $items = array();
+  $items['islandora_remote_resource_ingest_remote_oai_collection'] = array(
+    'aliases' => array('irrcc'),
+    'description' => 'Create local collection set to receive Remote Resource content.',
+    'drupal dependencies' => array(
+      'islandora',
+      'islandora_basic_collection',
+      'islandora_solution_pack_remote_resource',
+      'islandora_utils',
+    ),
+    'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_LOGIN,
+    'options' => array(
+      'oai_endpoint_protocol' => array(
+        'description' => "whether to use http (default) or https.",
+        'value' => 'optional',
+      ),
+      'oai_host' => array(
+        'description' => 'hostname of the oai endpoint, to be used in constructing request urls.',
+        'value' => 'required',
+      ),
+      'oai_endpoint' => array(
+        'description' => 'path to the OAI endpoint; for example /oai2',
+        'value' => 'required',
+      ),
+      'oai_set' => array(
+        'description' => 'OAI set identifier',
+        'value' => 'required',
+      ),
+      'target_collection' => array(
+        'description' => 'PID of local collection where the items should be ingested.',
+        'value' => 'required',
+      ),
+      'parent_collection' => array(
+        'description' => "Collection to which this one should belong [defaults to islandora:root].",
+        'value' => "optional",
+      ),
+    ),
+  );
   $items['islandora_remote_resource_create_collection'] = array(
     'aliases' => array('irrcc'),
     'description' => 'Create local collection set to receive Remote Resource content.',
@@ -244,6 +281,70 @@ function drush_islandora_remote_resource_batch_islandora_remote_resource_create_
 
   module_load_include('inc', 'islandora_utils', 'includes/util');
   islandora_utils_ingest_collection($title, $descr, $pid, $rent, $cmodels);
+}
+
+function drush_islandora_remote_resource_batch_islandora_remote_resource_ingest_remote_oai_collection() {
+  $set   = drush_get_option('oai_set');
+  $oai   = drush_get_option('oai_endpoint');
+  $host  = drush_get_option('oai_host');
+  $proto = drush_get_option('oai_endpoint_protocol', 'http');
+  $coll  = drush_get_option('target_collection');
+  $rent  = drush_get_option('parent_collection', 'islandora:root');
+
+  $collection_exists = islandora_object_load($coll);
+  if (!$collection_exists) {
+    $query_url = oai_query($proto, $host, $oai, 'ListSets');
+    try {
+      $list_sets = file_get_contents($query_url);
+    }
+    catch (Exception $e) {
+      drush_log("Error fetching remote file $query_url.", 'error');
+    }
+    $xml = simplexml_load_string($list_sets);
+    $xml->registerXPathNamespace('oai', "http://www.openarchives.org/OAI/2.0/");
+    $expr = "//oai:set";
+    $sets = $xml->xpath($expr);
+    foreach ($sets as $s) {
+      if ($s->setSpec == $set) {
+        break;
+      }
+    }
+    $description_wrapper = $s->setDescription->children('oai_dc', TRUE);
+    $description = $description_wrapper->children('dc', TRUE);
+    module_load_include('inc', 'islandora_utils', 'includes/util');
+    islandora_utils_ingest_collection($description->title, $description->description, $coll, $rent, islandora_remote_resource_batch_get_cmodel($coll));
+  }
+
+}
+
+function oai_query($proto, $host, $oai, $verb, $metaPrefix = 'mods', $set = NULL, $token = NULL) {
+  $base = sprintf("%s://%s%s", $proto, $host, $oai);
+  $query = sprintf("%s?verb=%s", $base, $verb);
+
+  if ($token) {
+    return sprintf("%s&resumptionToken=%s");
+  }
+  elseif ($verb == 'ListSets') {
+    return $query;
+  }
+  else {
+    $query = sprintf("%s&metadataPrefix=%s", $query, $metaPrefix);
+    if ($set) {
+      $query = sprintf("%s&set=%s", $query, $set);
+    }
+    return $query;
+  }
+}
+
+function islandora_remote_resource_batch_get_cmodel($namespace) {
+  return array(
+    array(
+      'dsid' => '',
+      'name' => 'Islandora Remote Resource Content Model',
+      'namespace' => $namespace,
+      'pid' => 'islandora:sp_remote_resource',
+    ),
+  );
 }
 
 function drush_islandora_remote_resource_batch_islandora_remote_resource_create_oai_collections() {
