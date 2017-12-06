@@ -35,6 +35,9 @@ class IslandoraRemoteResourceDoraListBatchObject extends IslandoraBatchObject {
         $this->ingestDatastream($dc);
       }
     }
+    else {
+        return ISLANDORA_BATCH_STATE__ERROR;
+    }
 
 // If the input data contains DC datastreams, load them.
     $this->getDc();
@@ -137,9 +140,14 @@ class IslandoraRemoteResourceDoraListBatchObject extends IslandoraBatchObject {
     $mods = $this->constructDatastream('MODS', 'M');
     $mods->mimetype = 'application/xml';
     $mods->label = 'MODS metadata';
-  
-    $mods->setContentFromString(
-        file_get_contents($this->getDSurl('MODS')), FALSE);
+    $url = $this->getDSurl('MODS');
+    $raw = file_get_contents($url);
+    $ok = simplexml_load_string($raw);
+    if(!$ok) {
+        drush_log("Problem loading MODS from $url", 'error');
+        return FALSE;
+    }
+    $mods->setContentFromString($raw, FALSE);
 
     if(!empty($mods->content)) {
       return $mods;
