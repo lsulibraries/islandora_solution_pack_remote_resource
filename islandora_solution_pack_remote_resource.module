@@ -61,6 +61,10 @@ function islandora_solution_pack_remote_resource_theme($existing, $type, $theme,
       'file' => 'theme/theme.inc',
       'variables' => array('islandora_object' => NULL),
     ),
+    'always view interstitial pages' => array(
+      'title' => t('Always view interstitial pages.'),
+      'description' => t("Prevents automatic redirect to enable management of the local object."),
+    ),
   );
 }
 
@@ -72,6 +76,10 @@ function islandora_solution_pack_remote_resource_permission() {
     'upload remote resource thumbnails' => array(
       'title' => t('Upload object-specific thumbnails'),
       'description' => t('Upload object-specific custom thumbnails'),
+    ),
+    'always view interstital pages' => array(
+      'title' => t('Always view interstitial pages.'),
+      'description' => t("Prevents automatic redirect to enable management of the local object."),
     ),
   );
 }
@@ -172,7 +180,8 @@ function islandora_solution_pack_remote_resource_islandora_sp_remote_resource_is
  * Implements hook_CMODEL_PID_islandora_view_object().
  */
 function islandora_solution_pack_remote_resource_islandora_sp_remote_resource_islandora_view_object($object, $page_number, $page_size) {
-  if (variable_get('islandora_solution_pack_remote_resource_redirection_type', 'interstitial') == 'goto') {
+  $skip_redirect = islandora_object_access('always view interstital pages', $object);
+  if (!$skip_redirect && variable_get('islandora_solution_pack_remote_resource_redirection_type', 'interstitial') == 'goto') {
     $remote_url = $object['OBJ']->content;
     drupal_goto($remote_url);
   }
