@@ -14,14 +14,19 @@ class IslandoraRemoteResourceDoraListBatchObject extends IslandoraBatchObject {
         $this->preprocessorParameters = $parameters;
     }
 
+    private function getDSurl($dsid) {
+        return sprintf('%s/datastream/%s/view', $this->url, $dsid);
+    }
+
     protected function getRemoteDatastream($dsid) {
         $url = $this->getDSurl($dsid);
         try {
             $raw = file_get_contents($url);
         } catch (Exception $e) {
-            drush_log($e->getMessage(), 'warn');
+            drush_log($e->getMessage(), 'warning');
         }
 
+        // Try to load the file; skip if not clean XML.
         libxml_use_internal_errors(TRUE);
         $xml = new DOMDocument();
         $xml->loadXML($raw, LIBXML_PEDANTIC);
@@ -30,14 +35,18 @@ class IslandoraRemoteResourceDoraListBatchObject extends IslandoraBatchObject {
         if (empty($errors)) {
             return $raw;
         } else {
+            $log_messages = [];
             foreach ($errors as $error) {
                 drush_log(
-                        sprintf("Failed getting datastream %s from %s; message was %s", $error->message, $dsid, $url), 'warn');
+                        sprintf("Failed getting datastream %s from %s; message was %s", $dsid, $url, $error->message), 'warning');
+                $log_messages[] = $error->message;
             }
+            watchdog(
+                    "Remote Resource Collection", "Failed getting datastream %dsid. Message(s): %mess", array('%dsid' => $dsid, '%mess' => implode(" ---|||--- ", $log_messages)), WATCHDOG_WARNING, $url
+            );
             return FALSE;
         }
         libxml_clear_errors();
-        return $raw;
     }
 
     /**
@@ -53,29 +62,28 @@ class IslandoraRemoteResourceDoraListBatchObject extends IslandoraBatchObject {
         $this->ingestDatastream($obj);
 
         // MODS, then from it DC, datastreams, if we have files named x.MODS.xml.
-        if ($mods = $this->getMods()) {
+        $mods = $this->getMods();
+        if ($mods) {
             $this->ingestDatastream($mods);
             $path_to_mods_to_dc_xsl = drupal_get_path('module', 'islandora_batch') . '/transforms/mods_to_dc.xsl';
             $mods_to_dc_xsl = file_get_contents($path_to_mods_to_dc_xsl);
             $dc_xml = islandora_remote_resource_batch_apply_xslt($mods_to_dc_xsl, $mods->content);
-            if ($dc = $this->getDcFromMods($dc_xml)) {
+            $dc = $this->getDcFromMods($dc_xml);
+            if ($dc) {
                 $this->ingestDatastream($dc);
             }
         } else {
             return ISLANDORA_BATCH_STATE__ERROR;
         }
 
-// If the input data contains DC datastreams, load them.
-//        $this->getDc();
-
         $this->label = islandora_solution_pack_remote_resource_get_label_from_dc($this['DC']->content);
 
-// TN datastream.
+        // TN datastream.
         if ($tn = $this->getTn()) {
             $this->ingestDatastream($tn);
         }
 
-// Additional datastreams.
+        // Additional datastreams.
         $additional_datastreams = $this->getAdditionalDatastreams();
         if (count($additional_datastreams)) {
             foreach ($additional_datastreams as $additional) {
@@ -85,7 +93,7 @@ class IslandoraRemoteResourceDoraListBatchObject extends IslandoraBatchObject {
 
         $this->addRelationships();
 
-// Indicate that this object is ready to be ingested.
+        // Indicate that this object is ready to be ingested.
         return ISLANDORA_BATCH_STATE__DONE;
     }
 
@@ -102,23 +110,6 @@ class IslandoraRemoteResourceDoraListBatchObject extends IslandoraBatchObject {
      */
     public function getResources() {
         return array();
-    }
-
-    private function getDSurl($dsid) {
-        return sprintf('%s/datastream/%s/view', $this->url, $dsid);
-    }
-
-    /**
-     * Creates a DC datastream from a file.
-     *
-     * Note: The DC datastream does not contain the local PID.
-     *
-     * @return object
-     *   The DC datastream, ready for ingestion.
-     */
-    private function getDc() {
-        $this['DC']->setContentFromString(
-                file_get_contents($this->getDSurl('DC')), FALSE);
     }
 
     /**
@@ -173,23 +164,25 @@ class IslandoraRemoteResourceDoraListBatchObject extends IslandoraBatchObject {
         $mods->mimetype = 'application/xml';
         $mods->label = 'MODS metadata';
         $raw = $this->getRemoteDatastream('MODS');
-        $mods->setContentFromString($raw, FALSE);
 
-        if (!empty($mods->content)) {
-            return $mods;
-        } else {
-// In the absence of a poper MODS file, generate a minimal one.
-            $mods = $this->constructDatastream('MODS', 'M');
-            $mods->content = <<<EOQ
+        if ($raw) {
+            $mods->setContentFromString($raw, FALSE);
+            if (!empty($mods->content)) {
+                return $mods;
+            } else {
+                // In the absence of a poper MODS file, generate a minimal one.
+                $mods = $this->constructDatastream('MODS', 'M');
+                $mods->content = <<<EOQ
 <mods xmlns='http://www.loc.gov/mods/v3'>
   <titleInfo>
-    <title>{$file_name}</title>
+    <title>{$this->url}</title>
   </titleInfo>
 </mods>
 EOQ;
-            $mods->mimetype = 'application/xml';
-            $mods->label = 'MODS metadata';
-            return $mods;
+                $mods->mimetype = 'application/xml';
+                $mods->label = 'MODS metadata';
+                return $mods;
+            }
         }
         return FALSE;
     }
@@ -210,49 +203,4 @@ EOQ;
         $dc->setContentFromString($dc_xml);
         return $dc;
     }
-
-    /**
-     * Creates any additional datastreams for the object based on filename.
-     *
-     * For a base OJB file with the name somefile.txt, a datastream with the
-     * DSID 'FOO' will be created from a file with the name somfile.FOO.ext.
-     * The datastream's mimetype will be derived from .ext. Its label will
-     * be 'FOO datastream'.
-     *
-     * @return array
-     *   A list of additional datastreams to ingest with the current object.
-     */
-    private function getAdditionalDatastreams() {
-        $datastreams = array();
-
-        $pathinfo = pathinfo($this->txtObjFilePath);
-        $dir_name = $pathinfo['dirname'];
-        $file_name = $pathinfo['filename'];
-        $base_path = $dir_name . DIRECTORY_SEPARATOR . $file_name;
-
-        $ds_filepaths = glob($base_path . '*');
-        foreach ($ds_filepaths as $ds_filepath) {
-// We don't want the base .txt file.
-            if ($ds_filepath != $base_path . '.txt') {
-// Or the DC, MODS, TN, files since those datastreams are
-// created elsewhere.
-                if (!preg_match('/\.(DC|TN|MODS)/', $ds_filepath)) {
-                    $ds_filepath_filename = pathinfo($ds_filepath, PATHINFO_FILENAME);
-// The DSID is not an extension, but it will be the part after
-// the final . in $ds_filepath_filename.
-                    $dsid = pathinfo($ds_filepath_filename, PATHINFO_EXTENSION);
-                    if (strlen($dsid)) {
-                        $ds = $this->constructDatastream($dsid, 'M');
-                        $mime_detector = new MimeDetect();
-                        $ds->mimetype = $mime_detector->getMimetype($ds_filepath);
-                        $ds->label = $dsid . ' datastream';
-                        $ds->setContentFromFile($ds_filepath, FALSE);
-                        $datastreams[] = $ds;
-                    }
-                }
-            }
-        }
-        return $datastreams;
-    }
-
 }
