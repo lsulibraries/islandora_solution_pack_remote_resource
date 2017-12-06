@@ -83,14 +83,6 @@ class IslandoraRemoteResourceDoraListBatchObject extends IslandoraBatchObject {
             $this->ingestDatastream($tn);
         }
 
-        // Additional datastreams.
-        $additional_datastreams = $this->getAdditionalDatastreams();
-        if (count($additional_datastreams)) {
-            foreach ($additional_datastreams as $additional) {
-                $this->ingestDatastream($additional);
-            }
-        }
-
         $this->addRelationships();
 
         // Indicate that this object is ready to be ingested.
