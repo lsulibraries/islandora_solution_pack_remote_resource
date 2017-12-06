@@ -256,13 +256,20 @@ function drush_islandora_remote_resource_batch_islandora_remote_resource_create_
 }
 
 function drush_islandora_remote_resource_batch_islandora_remote_resource_ingest_remote_oai_collection() {
+  $oai_set = drush_get_option('oai_set');
+  $oai_endpoint_protocol = drush_get_option('oai_endpoint_protocol', 'http');
+  $oai_host = drush_get_option('oai_host');
+  $oai_endpoint = drush_get_option('oai_endpoint');
+  $parent = drush_get_option('parent');
+  $namespace = drush_get_option('namespace');
+
   $remote_collection = new OaiCollection(
-      drush_get_option('oai_set'), drush_get_option('oai_endpoint_protocol', 'http'), drush_get_option('oai_host'), drush_get_option('oai_endpoint')
+      $oai_set, $oai_endpoint_protocol, $oai_host, $oai_endpoint
   );
   $parameters = array(
-    'parent' => drush_get_option('parent'),
+    'parent' => $parent,
     'parent_parent_collection' => drush_get_option('parent_parent_collection', 'islandora:root'),
-    'namespace' => drush_get_option('namespace'),
+    'namespace' => $namespace,
   );
   $existing_collection = islandora_object_load($parameters['parent']);
   if (!$existing_collection) {
