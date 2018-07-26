@@ -28,7 +28,7 @@ class OaiCollection {
   }
 
   public function identifiers() {
-    $recs = $this->endpoint->listIdentifiers('mods', NULL, NULL, $this->setSpec);
+    $recs = $this->endpoint->listIdentifiers('oai_qdc', NULL, NULL, $this->setSpec);
     return $recs;
   }
 

@@ -14,12 +14,14 @@ class IslandoraRemoteResourceOaiCollectionBatchPreprocessor extends IslandoraRem
   
   protected function getUrlList() {
     $identifiers = $this->remote_collection->identifiers();
+    
     $urls = array();
     foreach($identifiers as $record) {
-      $pid = str_replace('_', ':', explode(':', $record->identifier)[3]);
+      $pid = str_replace('_', ':', explode(':', $record->identifier)[2]);
       (string) $base = $this->remote_collection->hostBaseUrl();
       $url = sprintf("%s/islandora/object/%s", $base, $pid);
       $urls[] = $url;
+      var_dump($record, $url);
     }
     return $urls;
   }

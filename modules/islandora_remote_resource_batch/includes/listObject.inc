@@ -20,6 +20,7 @@ class IslandoraRemoteResourceDoraListBatchObject extends IslandoraBatchObject {
 
     protected function getRemoteDatastream($dsid) {
         $url = $this->getDSurl($dsid);
+        drush_log($url,'warning');
         try {
             $raw = file_get_contents($url);
         } catch (Exception $e) {

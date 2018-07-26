@@ -200,6 +200,7 @@ function drush_islandora_remote_resource_batch_preprocess() {
 
   // Run the preprocessor.
   $class = get_preprocessor($parameters);
+  prinf("hello\n------------\n");
   $preprocessor = new $class($connection, $parameters);
   $preprocessed = islandora_batch_handle_preprocessor($preprocessor);
   drush_log(t("SetId: @s", array('@s' => $preprocessor->getSetId())), "ok");
@@ -212,6 +213,7 @@ function get_preprocessor($parameters) {
 
   $oaiBased = isset($parameters['oai_endpoint']) && isset($parameters['oai_remote_host']) && isset($parameters['oai_set']);
   $listBased = isset($parameters['list']);
+
   if ($oaiBased xor $listBased) {
     if ($oaiBased) {
       return 'IslandoraRemoteResourceOaiDoraBatchPreprocessor';
@@ -250,7 +252,7 @@ function drush_islandora_remote_resource_batch_islandora_remote_resource_create_
   $descr = drush_get_option('description', 'no description given');
   $pid = drush_get_option('pid');
   $rent = drush_get_option('parent', 'islandora:root');
-  $cmodels = islandora_remote_resource_batch_get_cmodel($pid);
+  $cmodels = islandora_remote_resource_batch_get_cmodel_for_namespace($pid);
   module_load_include('inc', 'islandora_utils', 'includes/util');
   islandora_utils_ingest_collection($title, $descr, $pid, $rent, $cmodels);
 }
@@ -261,6 +263,7 @@ function drush_islandora_remote_resource_batch_islandora_remote_resource_ingest_
   );
   $parameters = array(
     'parent' => drush_get_option('parent'),
+    // TODO don't hard-code islandora:root
     'parent_parent_collection' => drush_get_option('parent_parent_collection', 'islandora:root'),
     'namespace' => drush_get_option('namespace'),
   );
@@ -268,7 +271,7 @@ function drush_islandora_remote_resource_batch_islandora_remote_resource_ingest_
   if (!$existing_collection) {
     module_load_include('inc', 'islandora_utils', 'includes/util');
     islandora_utils_ingest_collection(
-        $remote_collection->title, $remote_collection->description, $parameters['parent'], $parameters['parent_parent_collection'], islandora_remote_resource_batch_get_cmodel($parameters['namespace'])
+        $remote_collection->title, $remote_collection->description, $parameters['parent'], $parameters['parent_parent_collection'], islandora_remote_resource_batch_get_cmodel_for_namespace($parameters['namespace'])
     );
   }
 
@@ -280,7 +283,7 @@ function drush_islandora_remote_resource_batch_islandora_remote_resource_ingest_
   drush_log(t("SetId: @s", array('@s' => $preprocessor->getSetId())), "ok");
 }
 
-function islandora_remote_resource_batch_get_cmodel($namespace) {
+function islandora_remote_resource_batch_get_cmodel_for_namespace($namespace) {
   return array(
     array(
       'dsid' => '',
