@@ -10,7 +10,8 @@ class IslandoraRemoteResourceListBatchPreprocessor extends IslandoraRemoteResour
     foreach ($urls as $remote_url) {
       // We only want to ingest objects that aren't already in our repo.
       if (!islandora_remote_resource_batch_query_solr($remote_url)) {
-        $batch_object = new IslandoraRemoteResourceDoraListBatchObject($this->connection, $remote_url, $this->parameters);
+        $class = $this->getObjectClass();
+        $batch_object = new $class($this->connection, $remote_url, $this->parameters);
         // Add the instances to the Islandora batch queue.
         $this->addToDatabase($batch_object);
         $added[] = $batch_object;
@@ -19,6 +20,10 @@ class IslandoraRemoteResourceListBatchPreprocessor extends IslandoraRemoteResour
     return $added;
   }
 
+  protected function getObjectClass() {
+    return 'IslandoraRemoteResourceDoraListBatchObject';
+  }
+  
   protected function getUrlList() {
     return explode("\n", file_get_contents($this->parameters['list']));
   }

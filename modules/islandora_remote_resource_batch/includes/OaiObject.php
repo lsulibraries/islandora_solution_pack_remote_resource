@@ -32,9 +32,15 @@ class OaiCollection {
     return $recs;
   }
 
+  public function records() {
+    $recs = $this->endpoint->listRecords('oai_qdc', NULL, NULL, $this->setSpec);
+    return $recs;
+  }
+
   public function init_collection_meta() {
     $sets = $this->endpoint->listSets();
     foreach ($sets as $set) {
+      drush_log($set, 'info');
       if($set->setSpec == $this->setSpec)  {
         break;
       }

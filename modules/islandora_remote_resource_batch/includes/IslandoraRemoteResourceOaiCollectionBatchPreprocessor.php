@@ -2,7 +2,7 @@
 
 class IslandoraRemoteResourceOaiCollectionBatchPreprocessor extends IslandoraRemoteResourceListBatchPreprocessor {
 
-  public $parometers = array();
+  public $parameters = array();
   public $remote_collection;
 
   public function __construct($connection, $parameters, $remote_collection) {
@@ -13,16 +13,34 @@ class IslandoraRemoteResourceOaiCollectionBatchPreprocessor extends IslandoraRem
   }
   
   protected function getUrlList() {
-    $identifiers = $this->remote_collection->identifiers();
-    
+    $identifiers = $this->getIdentifiers();
+    $this->parameters['identifiers'] = [];
     $urls = array();
-    foreach($identifiers as $record) {
-      $pid = str_replace('_', ':', explode(':', $record->identifier)[2]);
-      (string) $base = $this->remote_collection->hostBaseUrl();
-      $url = sprintf("%s/islandora/object/%s", $base, $pid);
+    foreach($identifiers as $identifier) {
+      $id = $this->getIdfromIdentifier($identifier);
+      $url = $this->getUrlForId($id);
       $urls[] = $url;
-      var_dump($record, $url);
+      $this->parameters['identifiers'][$url] = $identifier;
     }
     return $urls;
+  }
+  
+  protected function getUrlForId($id) {
+    (string) $base = $this->remote_collection->hostBaseUrl();
+    $url = sprintf("%s/islandora/object/%s", $base, $id);
+    return $url;
+  }
+
+  protected function getMetadataPrefix() {
+    return 'mods';
+  }
+  
+  protected function getIdfromIdentifier($identifier) {
+    $id = str_replace('_', ':', explode(':', $identifier->identifier)[$i]);
+    return $id;
+  }
+
+  protected function getIdentifiers() {
+    return $this->remote_collection->identifiers();
   }
 }

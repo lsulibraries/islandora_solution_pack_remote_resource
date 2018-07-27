@@ -28,19 +28,23 @@ function islandora_remote_resource_batch_drush_command() {
       ),
       'oai_host' => array(
         'description' => 'hostname of the oai endpoint, to be used in constructing request urls.',
-        'value' => 'required',
+        'required' => TRUE,
       ),
       'oai_endpoint' => array(
         'description' => 'path to the OAI endpoint; for example /oai2',
-        'value' => 'required',
+        'required' => TRUE,
       ),
       'oai_set' => array(
         'description' => 'OAI set identifier',
-        'value' => 'required',
+        'required' => TRUE,
       ),
+      'oai_remote_platform' => [
+        'description' => 'Type of site are we harvesting from- either \'cdm\' or \'Islandora\'',
+        'required' => TRUE,
+      ],
       'parent' => array(
         'description' => 'PID of local collection where the items should be ingested.',
-        'value' => 'required',
+        'required' => TRUE,
       ),
       'parent_parent_collection' => array(
         'description' => "Collection to which this one should belong [defaults to islandora:root].",
@@ -60,11 +64,11 @@ function islandora_remote_resource_batch_drush_command() {
     'options' => array(
       'pid' => array(
         'description' => 'Full PID for the collection',
-        'value' => 'required',
+        'required' => TRUE,
       ),
       'parent' => array(
         'description' => "Collection to which this one should belong; defaults to islandora:root.",
-        'value' => 'required',
+        'required' => TRUE,
       ),
       'title' => array(
         'description' => "Title of the collection.",
@@ -89,11 +93,11 @@ function islandora_remote_resource_batch_drush_command() {
     'options' => array(
       'oai_endpoint' => array(
         'description' => 'URL of the OAI endpoint.',
-        'value' => 'required',
+        'required' => TRUE,
       ),
       'oai_remote_host' => array(
         'description' => 'Base URL of the OAI endpoint.',
-        'value' => 'required',
+        'required' => TRUE,
       ),
       'oai_endpoint_protocol' => array(
         'description' => "whether to use http (default) or https.",
@@ -210,13 +214,20 @@ function get_preprocessor($parameters) {
   if (isset($parameters['target'])) {
     return 'IslandoraRemoteResourceBatchPreprocessor';
   }
-
-  $oaiBased = isset($parameters['oai_endpoint']) && isset($parameters['oai_remote_host']) && isset($parameters['oai_set']);
+  $oaiBased = isset($parameters['oai_endpoint']) && isset($parameters['oai_set']);
   $listBased = isset($parameters['list']);
 
   if ($oaiBased xor $listBased) {
     if ($oaiBased) {
-      return 'IslandoraRemoteResourceOaiDoraBatchPreprocessor';
+      if ($parameters['oai_remote_platform'] == 'islandora') {
+        return 'IslandoraRemoteResourceOaiCollectionBatchPreprocessor';
+      }
+      elseif ($parameters['oai_remote_platform'] == 'cdm') {
+        return 'IslandoraRemoteResourceOaiCdmBatchPreprocessor';
+      }
+      else {
+        throw new Exception (sprintf("Expected one of ['cdm'|'islandora']; got %s ", $parameters['oai_remote_platform']));
+      }
     }
     else {
       return 'IslandoraRemoteResourceListBatchPreprocessor';
@@ -266,6 +277,10 @@ function drush_islandora_remote_resource_batch_islandora_remote_resource_ingest_
     // TODO don't hard-code islandora:root
     'parent_parent_collection' => drush_get_option('parent_parent_collection', 'islandora:root'),
     'namespace' => drush_get_option('namespace'),
+    'oai_remote_platform' => strtolower(drush_get_option('oai_remote_platform')),
+    'oai_host' => drush_get_option('oai_host'),
+    'oai_set' => drush_get_option('oai_set'),
+    'oai_endpoint' => drush_get_option('oai_endpoint'),
   );
   $existing_collection = islandora_object_load($parameters['parent']);
   if (!$existing_collection) {
@@ -276,9 +291,9 @@ function drush_islandora_remote_resource_batch_islandora_remote_resource_ingest_
   }
 
   // Run the preprocessor.
+  $class = get_preprocessor($parameters);
   drupal_static_reset('islandora_get_tuque_connection');
-  $preprocessor = new IslandoraRemoteResourceOaiCollectionBatchPreprocessor(
-      islandora_get_tuque_connection(), $parameters, $remote_collection);
+  $preprocessor = new $class(islandora_get_tuque_connection(), $parameters, $remote_collection);
   $preprocessed = islandora_batch_handle_preprocessor($preprocessor);
   drush_log(t("SetId: @s", array('@s' => $preprocessor->getSetId())), "ok");
 }
