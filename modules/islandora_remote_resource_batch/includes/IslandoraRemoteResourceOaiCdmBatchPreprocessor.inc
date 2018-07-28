@@ -14,8 +14,8 @@ class IslandoraRemoteResourceOaiCdmBatchPreprocessor extends IslandoraRemoteReso
 
   protected function getUrlForId($identifier) {
     // http://cdm16340.contentdm.oclc.org/cdm/ref/collection/p16340coll12/id/1
-    $remote_host = $this->parameters['oai_remote_host'];
-    $url = sprintf("%s/cdm/ref/collection/%s/id/%s", $remote_host, $this->parameters['oai_set'], $identifier);
+    $remote_host = $this->parameters['oai_host'];
+    $url = sprintf("https://%s/cdm/ref/collection/%s/id/%s", $remote_host, $this->parameters['oai_set'], $identifier);
     drush_log($url, 'info');
     return $url;
   }
