@@ -28,12 +28,12 @@ class OaiCollection {
   }
 
   public function identifiers() {
-    $recs = $this->endpoint->listIdentifiers('oai_qdc', NULL, NULL, $this->setSpec);
+    $recs = $this->endpoint->listIdentifiers('oai_dc', NULL, NULL, $this->setSpec);
     return $recs;
   }
 
   public function records() {
-    $recs = $this->endpoint->listRecords('oai_qdc', NULL, NULL, $this->setSpec);
+    $recs = $this->endpoint->listRecords('oai_dc', NULL, NULL, $this->setSpec);
     return $recs;
   }
 
@@ -45,10 +45,11 @@ class OaiCollection {
         break;
       }
     }
+    $this->title = $set->setName;
     $description_wrapper = $set->setDescription->children('oai_dc', TRUE);
     $description = $description_wrapper->children('dc', TRUE);
     $this->description = str_replace('&', '&amp;', $description->description);
-    $this->title = str_replace('&', '&amp;', $description->title);
+    //    $this->title = str_replace('&', '&amp;', $description->title);
   }
 }
 

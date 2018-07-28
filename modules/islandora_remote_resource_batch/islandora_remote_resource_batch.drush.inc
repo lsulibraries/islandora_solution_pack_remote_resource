@@ -289,7 +289,6 @@ function drush_islandora_remote_resource_batch_islandora_remote_resource_ingest_
         $remote_collection->title, $remote_collection->description, $parameters['parent'], $parameters['parent_parent_collection'], islandora_remote_resource_batch_get_cmodel_for_namespace($parameters['namespace'])
     );
   }
-
   // Run the preprocessor.
   $class = get_preprocessor($parameters);
   drupal_static_reset('islandora_get_tuque_connection');

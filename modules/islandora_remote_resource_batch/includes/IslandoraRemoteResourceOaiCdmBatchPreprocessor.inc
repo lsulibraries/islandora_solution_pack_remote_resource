@@ -9,7 +9,7 @@
 class IslandoraRemoteResourceOaiCdmBatchPreprocessor extends IslandoraRemoteResourceOaiCollectionBatchPreprocessor {
   
   protected function getMetadataPrefix() {
-    return 'oai_qdc';
+    return 'oai_dc';
   }
 
   protected function getUrlForId($identifier) {
@@ -37,7 +37,7 @@ class IslandoraRemoteResourceOaiCdmBatchPreprocessor extends IslandoraRemoteReso
       $oai = $rec->children("http://www.openarchives.org/OAI/2.0/");
       $id = (string) $rec->header->identifier;
       if ($rec->metadata) {
-	$dc = $oai->metadata->children('oai_qdc', TRUE)->qualifieddc->asXML();
+	$dc = $oai->metadata->children('oai_dc', TRUE)->dc->asXML();
 	$this->parameters['dc_records'][$id] = $dc;
       }
       else {
