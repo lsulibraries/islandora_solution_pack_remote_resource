@@ -19,7 +19,6 @@ class IslandoraRemoteResourceOaiCollectionBatchPreprocessor extends IslandoraRem
     foreach($identifiers as $identifier) {
       $id = $this->getIdfromIdentifier($identifier);
       $url = $this->getUrlForId($id);
-      printf("adding url $url\n");
       $urls[] = $url;
       $this->parameters['identifiers'][$url] = $identifier;
     }

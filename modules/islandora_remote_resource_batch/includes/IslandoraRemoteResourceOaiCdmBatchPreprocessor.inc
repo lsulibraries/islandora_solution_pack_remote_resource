@@ -36,7 +36,7 @@ class IslandoraRemoteResourceOaiCdmBatchPreprocessor extends IslandoraRemoteReso
     foreach($recs as $rec) {
       $oai = $rec->children("http://www.openarchives.org/OAI/2.0/");
       $id = (string) $rec->header->identifier;
-      if ($rec->header->metadata) {
+      if ($rec->metadata) {
 	$dc = $oai->metadata->children('oai_qdc', TRUE)->qualifieddc->asXML();
 	$this->parameters['dc_records'][$id] = $dc;
       }
