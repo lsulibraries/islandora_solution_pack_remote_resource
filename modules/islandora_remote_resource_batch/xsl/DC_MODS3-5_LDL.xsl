@@ -350,8 +350,9 @@
         an institution code passed as a parameter, 
         and collection code from the sibling setSpec -->
     <xsl:template name="RelationURL">
+        <xsl:variable name="sourceURL" select="dc:identifier[starts-with(text(), 'http')]"/>
         <xsl:variable name="collectionCode">
-            <xsl:value-of select="ancestor::*[local-name()='record']//*[local-name()='setSpec']/text()"/>
+            <xsl:value-of select="substring-before(substring-after($sourceURL, 'ref/collection/'), '/id/')"/>
         </xsl:variable>
         <xsl:variable name="relationURL">
             <xsl:value-of select="concat('http://louisianadigitallibrary.org/islandora/object/', $institutionCode, '-', $collectionCode, ':collection')"/>
