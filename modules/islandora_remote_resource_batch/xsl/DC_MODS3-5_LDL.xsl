@@ -23,23 +23,31 @@
     -->
     <xsl:output method="xml" indent="yes" encoding="UTF-8"/>
     
+    <!-- Set parameters for source repository -->
     <xsl:param name="contributingRepository">
         <xsl:text>East Baton Rouge Parish Library</xsl:text>
     </xsl:param>
     <xsl:param name="institutionCode">
         <xsl:text>ebrpl</xsl:text>
     </xsl:param>
+    <xsl:param name="contactInfo">
+        <xsl:text>For more information about this item, contact batonrougedigitallibrary@ebrpl.com</xsl:text>
+    </xsl:param>
+    <xsl:param name="harvestedFrom">
+        <xsl:text>East Baton Rouge Parish Library's Baton Rouge Archive</xsl:text> 
+    </xsl:param>
     
+    <!-- Set up transform and remove empty fields -->
     <xsl:template match="*[local-name()='OAI-PMH']">
         <xsl:apply-templates select="//oai_dc:dc"/>
     </xsl:template>
-    
     <xsl:template match="@* | node() ">
         <xsl:copy>
             <xsl:apply-templates select="@*[normalize-space()] | node()[normalize-space()] "/>
         </xsl:copy>
     </xsl:template>
     
+    <!-- Main template; orders resulting document fields and fills in elements with default and parameter values -->
     <xsl:template match="oai_dc:dc">
         <mods 
             xmlns="http://www.loc.gov/mods/v3"
@@ -78,17 +86,20 @@
         <xsl:call-template name="RelationURL"/>
         <xsl:apply-templates select="dc:rights"/>
         <accessCondition type="use and reproduction" displayLabel="Contact Information">
-            <xsl:text>For more information about this item, contact batonrougedigitallibrary@ebrpl.com</xsl:text>
+            <xsl:value-of select="$contactInfo"/>
         </accessCondition>
         <recordInfo>
             <languageOfCataloging>
                 <languageTerm type="code" authority="iso639-2b">eng</languageTerm>
             </languageOfCataloging>
-            <recordOrigin>Record harvested from the Baton Rouge Archive using OAI-PMH. DC converted to MODS by the LDL Development Team using XSLT 1.0 stylesheet adapted from the LoC's DC to MODS 3.5 XSLT.</recordOrigin>
+                <recordOrigin>Record harvested from <xsl:value-of select="$harvestedFrom"/> using
+                    OAI-PMH. DC converted to MODS by the LDL Development Team using a custom XSLT
+                    1.0 stylesheet adapted from the LoC's DC to MODS 3.5 XSLT.</recordOrigin>
         </recordInfo>
         </mods>
     </xsl:template>
     
+    <!-- DC Title maps to MODS titleInfo/title -->
     <xsl:template match="dc:title">
         <titleInfo>
             <title>
@@ -97,12 +108,14 @@
         </titleInfo>
     </xsl:template>
     
+    <!-- DC Identifier maps to MODS identifier;
+    an identifier beginning with 'http' gets a @type value of 'uri' and a @displayLabel value of 'Harvested From'; 
+    assumes that the only URL identifier in the source will be the URL of the record itself. -->
     <xsl:template match="dc:identifier">
         <identifier>
             <xsl:attribute name="type">
                 <xsl:choose>
-                    <!-- handled by location/url -->
-                    <xsl:when test="starts-with(text(), 'http://')">
+                    <xsl:when test="starts-with(text(), 'http')">
                         <xsl:text>uri</xsl:text>
                     </xsl:when>
                     <xsl:otherwise>
@@ -110,7 +123,7 @@
                     </xsl:otherwise>
                 </xsl:choose>
             </xsl:attribute>
-            <xsl:if test="starts-with(text(), 'http://')">
+            <xsl:if test="starts-with(text(), 'http')">
                 <xsl:attribute name="displayLabel">
                     <xsl:text>Harvested From</xsl:text>
                 </xsl:attribute>
@@ -119,6 +132,7 @@
         </identifier>
     </xsl:template>
     
+    <!-- DC Creator becomes MODS name/namePart with 'Creator' role -->
     <xsl:template match="dc:creator">
         <name>
             <namePart>
@@ -135,6 +149,7 @@
         </name>
     </xsl:template>
     
+    <!-- DC Contributor becomes MODS name/namePart with 'Contributor' role -->
     <xsl:template match="dc:contributor">
         <name>
             <namePart>
@@ -151,18 +166,23 @@
         </name>
     </xsl:template>
     
+    <!-- DC Publisher becomes MODS originInfo/publisher -->
     <xsl:template match="dc:publisher">
         <publisher>
             <xsl:apply-templates/>
         </publisher>
     </xsl:template>
     
+    <!-- DC Date becomes MODS originInfo/dateOther;
+    unable to assume all DC Dates will be Date Created -->
     <xsl:template match="dc:date">
-        <dateCreated>
+        <dateOther>
             <xsl:apply-templates/>
-        </dateCreated>
+        </dateOther>
     </xsl:template>
     
+    <!-- DC Subject becomes MODS subject/topic; 
+        calls template to split subjects on double hyphen -->
     <xsl:template match="dc:subject">
         <subject>
             <xsl:call-template name="tokenizeString">
@@ -173,6 +193,9 @@
         </subject>
     </xsl:template>
     
+    <!-- DC Coverage becomes MODS subject/temporal if the contents of the field begin with a number 1-9 or hyphen;
+        otherwise becomes MODS subject/geographic;
+        calls template to split subjects on double hyphen -->
     <xsl:template match="dc:coverage">
         <subject>
             <xsl:call-template name="tokenizeString">
@@ -192,16 +215,19 @@
         </subject>
     </xsl:template>
     
-    
+    <!-- DC Description becomes MODS abstract;
+    assumes the majority of Descriptions will be summaries instead of notes;
+    abstract field offers greater search and display functionality in LDL -->
     <xsl:template match="dc:description">
         <abstract>
             <xsl:apply-templates/>
         </abstract>
     </xsl:template>
     
-    
+    <!-- DC Type becomes MODS typeOfResource;
+        DC Type Vocabulary values are translated to corresponding MODS Type Vocabulary;
+        if there is no match, then 'mixed material' is assigned -->
     <xsl:template match="dc:type">
-        <!--2.0: Variable test for any dc:type with value of collection for mods:typeOfResource -->
         <xsl:variable name="collection">
             <xsl:if test="../dc:type[string(text()) = 'collection' or string(text()) = 'Collection']">true</xsl:if>
         </xsl:variable>
@@ -243,7 +269,10 @@
         </typeOfResource>                
     </xsl:template>   
 
-    
+    <!-- DC Format maps to MODS physicalDescription/*:
+        - if value matches one of the specified file types, then maps to internetMediaType;
+        - if value begins wtih a number 1-9, then maps to extent;
+        - otherwise maps to note with @type='medium' -->
     <xsl:template match="dc:format">
         <xsl:choose>
             <xsl:when
@@ -265,6 +294,9 @@
         </xsl:choose>
     </xsl:template>
     
+    <!-- DC Language maps to MODS language;
+    uses @type 'code' if the value is 2 or 3 characters long; 
+    otherwise uses @type 'text' -->
     <xsl:template match="dc:language">
         <language>
             <xsl:choose>
@@ -282,10 +314,13 @@
         </language>
     </xsl:template>
     
+    <!-- DC Source and DC Relation both map to MODS relatedItem with @type original:
+        - if the value starts with http then maps to both location/url and identifier with @type 'uri';
+        - otherwise maps to note with @type 'ownership' and @displayLabel 'Source Note' -->
     <xsl:template match="dc:source|dc:relation">
         <relatedItem type="original">
             <xsl:choose>
-                <xsl:when test="starts-with(normalize-space(.),'http://')">
+                <xsl:when test="starts-with(normalize-space(.),'http')">
                     <location>
                         <url>
                             <xsl:apply-templates/>
@@ -304,12 +339,16 @@
         </relatedItem>
     </xsl:template>
     
+    <!-- DC Rights maps to MODS accessCondition with @displayLabel 'Rights' -->
     <xsl:template match="dc:rights">
         <accessCondition type="use and reproduction" displayLabel="Rights">
             <xsl:apply-templates/>
         </accessCondition>
     </xsl:template>
     
+    <!-- Relation URL at MODS relatedItem/location/url is built using LDL base URL, 
+        an institution code passed as a parameter, 
+        and collection code from the sibling setSpec -->
     <xsl:template name="RelationURL">
         <xsl:variable name="collectionCode">
             <xsl:value-of select="ancestor::*[local-name()='record']//*[local-name()='setSpec']/text()"/>
@@ -326,6 +365,7 @@
         </relatedItem>
     </xsl:template>
     
+    <!-- TokenizeString template used for splitting subject and coverage values on a delimiter -->
     <xsl:template name="tokenizeString">
         <xsl:param name="list"/>
         <xsl:param name="delimiter"/>
