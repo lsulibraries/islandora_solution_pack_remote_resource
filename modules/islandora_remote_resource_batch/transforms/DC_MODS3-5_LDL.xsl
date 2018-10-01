@@ -78,7 +78,7 @@
                 <xsl:value-of select="$contributingRepository"/>
             </namePart>
             <role>
-                <roleTerm type="text" authority="marcrelator">Contributing Repository</roleTerm>
+                <roleTerm type="text" authority="marcrelator">Repository</roleTerm>
                 <roleTerm type="code" authority="marcrelator">rps</roleTerm>
             </role>
         </name>
