@@ -12,3 +12,5 @@ files[] = includes/listObject.inc
 files[] = includes/OaiObject.php
 files[] = includes/IslandoraRemoteResourceOaiDoraBatchPreprocessor.php
 files[] = includes/IslandoraRemoteResourceOaiCollectionBatchPreprocessor.php
+files[] = includes/IslandoraRemoteResourceOaiCdmBatchPreprocessor.inc
+files[] = includes/IslandoraRemoteResourceCdmListBatchObject.inc
