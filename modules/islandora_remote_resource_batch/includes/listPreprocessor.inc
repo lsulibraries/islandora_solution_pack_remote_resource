@@ -26,14 +26,18 @@ class IslandoraRemoteResourceListBatchPreprocessor extends IslandoraRemoteResour
           // Before we do anything, check if the datastream exists. If it does, load it; otherwise construct it.
           // The easiest way to do this, as opposed to a string of cases or if/then/elses, is the ternary operator, e.g.
           // $variable = isThisThingTrueOrFalse($thing) ? setToThisIfTrue() : setToThisIfFalse();
-          $datastream = isset($object[$dsid]) ? $object[$dsid] : $object->constructDatastream($dsid, 'M');
-          $datastream->label = 'MODS metadata';
-          $datastream->mimeType = 'application/xml';
-          $datastream->setContentFromString($remote_mods);
-          // Ingest the datastream if it isn't yet.
-          if (!isset($object['DSID'])) {
+          if (!isset($object[$dsid])) {
+            $datastream = $object->constructDatastream($dsid, 'M');
+            $datastream->label = 'MODS metadata';
+            $datastream->mimeType = 'application/xml';
+            $datastream->setContentFromString($remote_mods);
             $object->ingestDatastream($datastream);
           }
+          else {
+            $datastream = $object[$dsid];
+            $datastream->setContentFromString($remote_mods);
+          }
+
           module_load_include('inc', 'islandora_batch_derivative_trigger', 'includes/batch');
           islandora_batch_derivative_trigger_regenerate_dc_metadata($object, 'mods_to_dc.xsl:MODS');
         }
