@@ -15,12 +15,13 @@ class IslandoraRemoteResourceListBatchPreprocessor extends IslandoraRemoteResour
         // Add the instances to the Islandora batch queue.
         $this->addToDatabase($batch_object);
         $added[] = $batch_object;
+        drush_log("Added new object from $remote_url", 'ok')
       }
       else {
         $object = islandora_object_load($pid);
         $remote_mods = $this->getRemoteDatastream('MODS', $remote_url);
         if (md5($remote_mods) != md5($object['MODS']->content)) {
-
+          drush_log("Updating metadata for $pid", 'ok')
           $dsid = 'MODS';
           // Before we do anything, check if the datastream exists. If it does, load it; otherwise construct it.
           // The easiest way to do this, as opposed to a string of cases or if/then/elses, is the ternary operator, e.g.
