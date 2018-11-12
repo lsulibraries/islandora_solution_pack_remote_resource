@@ -33,6 +33,8 @@ class IslandoraRemoteResourceListBatchPreprocessor extends IslandoraRemoteResour
           if (!isset($object['DSID'])) {
             $object->ingestDatastream($datastream);
           }
+          module_load_include('inc', 'islandora_batch_derivative_trigger', 'includes/batch');
+          islandora_batch_derivative_trigger_regenerate_dc_metadata($object, 'mods_to_dc.xsl:MODS');
         }
       }
     }
