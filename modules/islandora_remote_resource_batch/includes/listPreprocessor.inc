@@ -19,7 +19,7 @@ class IslandoraRemoteResourceListBatchPreprocessor extends IslandoraRemoteResour
       else {
         $object = islandora_object_load($pid);
         $remote_mods = $this->getRemoteDatastream('MODS', $remote_url);
-        if (md5($remote_mods) != md5($object['MODS'])) {
+        if (md5($remote_mods) != md5($object['MODS']->content)) {
 
           $dsid = 'MODS';
           // Before we do anything, check if the datastream exists. If it does, load it; otherwise construct it.
