@@ -38,8 +38,10 @@ class IslandoraRemoteResourceListBatchPreprocessor extends IslandoraRemoteResour
             $datastream->setContentFromString($remote_mods);
           }
 
-          module_load_include('inc', 'islandora_batch_derivative_trigger', 'includes/batch');
-          islandora_batch_derivative_trigger_regenerate_dc_metadata($object, 'mods_to_dc.xsl:MODS');
+          if (module_exists('islandora_batch_derivative_trigger')) {
+            module_load_include('inc', 'islandora_batch_derivative_trigger', 'includes/batch');
+            islandora_batch_derivative_trigger_regenerate_dc_metadata($object, 'mods_to_dc.xsl:MODS');
+          }
         }
       }
     }
