@@ -8,20 +8,23 @@ class IslandoraRemoteResourceListBatchPreprocessor extends IslandoraRemoteResour
     $added = array();
     $urls = $this->getUrlList();
     foreach ($urls as $remote_url) {
-      $pid = islandora_remote_resource_batch_query_solr($remote_url);
+      $log_leader = "Processing URL $remote_url - ";
+      $search_url = preg_replace("#http[s]?://#", '', $remote_url);
+      $pid = islandora_remote_resource_batch_query_solr($search_url);
+
       // We only want to ingest objects that aren't already in our repo.
       if (!$pid) {
         $batch_object = new IslandoraRemoteResourceDoraListBatchObject($this->connection, $remote_url, $this->parameters);
         // Add the instances to the Islandora batch queue.
         $this->addToDatabase($batch_object);
         $added[] = $batch_object;
-        drush_log("Added new object from $remote_url", 'ok');
+        drush_log("$log_leader NEW    - Added new object", 'ok');
       }
       else {
         $object = islandora_object_load($pid);
         $remote_mods = $this->getRemoteDatastream('MODS', $remote_url);
         if (md5($remote_mods) != md5($object['MODS']->content)) {
-          drush_log("Updating metadata for $pid", 'ok');
+          drush_log("$log_leader UPDATE - metadata for $pid", 'ok');
           $dsid = 'MODS';
           // Before we do anything, check if the datastream exists. If it does, load it; otherwise construct it.
           // The easiest way to do this, as opposed to a string of cases or if/then/elses, is the ternary operator, e.g.
@@ -43,6 +46,9 @@ class IslandoraRemoteResourceListBatchPreprocessor extends IslandoraRemoteResour
             islandora_batch_derivative_trigger_regenerate_dc_metadata($object, 'mods_to_dc.xsl:MODS');
           }
         }
+	else {
+	  drush_log(sprintf("%s SKIP   - No update needed for %s", $log_leader, $pid), 'ok');
+	}
       }
     }
     return $added;
