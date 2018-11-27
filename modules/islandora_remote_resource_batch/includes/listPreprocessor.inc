@@ -11,9 +11,11 @@ class IslandoraRemoteResourceListBatchPreprocessor extends IslandoraRemoteResour
       $log_leader = "Processing URL $remote_url - ";
       $search_url = preg_replace("#http[s]?://#", '', $remote_url);
       $pid = islandora_remote_resource_batch_query_solr($search_url);
+      $object = islandora_object_load($pid);
+      $solr_ghost = $pid !== FALSE && $object == FALSE;
 
       // We only want to ingest objects that aren't already in our repo.
-      if (!$pid) {
+      if (!$pid || $solr_ghost) {
         $batch_object = new IslandoraRemoteResourceDoraListBatchObject($this->connection, $remote_url, $this->parameters);
         // Add the instances to the Islandora batch queue.
         $this->addToDatabase($batch_object);
@@ -21,7 +23,6 @@ class IslandoraRemoteResourceListBatchPreprocessor extends IslandoraRemoteResour
         drush_log("$log_leader NEW    - Added new object", 'ok');
       }
       else {
-        $object = islandora_object_load($pid);
         $remote_mods = $this->getRemoteDatastream('MODS', $remote_url);
         if (md5($remote_mods) != md5($object['MODS']->content)) {
           drush_log("$log_leader UPDATE - metadata for $pid", 'ok');
