@@ -11,9 +11,11 @@ class OaiCollection {
   public $setSpec, $endpoint, $protocol, $host, $oai_path, $description, $title, $since;
 
   public function __construct($set, $protocol, $host, $oai_path, $since = NULL) {
+
     if (NULL !== $since) {
       $since = new \DateTime($since);
     }
+
     $this->since = $since;
     $this->setSpec  = $set;
     $this->protocol = trim($protocol, '/');
@@ -32,7 +34,7 @@ class OaiCollection {
   }
 
   public function identifiers() {
-    $recs = $this->endpoint->listIdentifiers('mods', $tihs->since, NULL, $this->setSpec);
+    $recs = $this->endpoint->listIdentifiers('mods', $this->since, NULL, $this->setSpec);
     return $recs;
   }
 

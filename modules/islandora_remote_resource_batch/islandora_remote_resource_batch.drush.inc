@@ -261,7 +261,7 @@ function drush_islandora_remote_resource_batch_islandora_remote_resource_create_
 
 function drush_islandora_remote_resource_batch_islandora_remote_resource_ingest_remote_oai_collection() {
   $remote_collection = new OaiCollection(
-      drush_get_option('oai_set'), drush_get_option('oai_endpoint_protocol', 'http'), drush_get_option('oai_host'), drush_get_option('oai_endpoint'), drush_get_option('since', NULL)
+      drush_get_option('oai_set'), drush_get_option('oai_endpoint_protocol', 'https'), drush_get_option('oai_host'), drush_get_option('oai_endpoint'), drush_get_option('since', NULL)
   );
   $parameters = array(
     'parent' => drush_get_option('parent'),
