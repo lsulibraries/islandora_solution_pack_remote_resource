@@ -3,14 +3,20 @@
 require_once drupal_realpath(dirname(dirname(__FILE__))) . '/vendor/autoload.php';
 
 class OaiObject {
-  
+
 }
 
 class OaiCollection {
 
-  public $setSpec, $endpoint, $protocol, $host, $oai_path, $description, $title;
+  public $setSpec, $endpoint, $protocol, $host, $oai_path, $description, $title, $since;
 
-  public function __construct($set, $protocol, $host, $oai_path) {
+  public function __construct($set, $protocol, $host, $oai_path, $since = NULL) {
+
+    if (NULL !== $since) {
+      $since = new \DateTime($since);
+    }
+
+    $this->since = $since;
     $this->setSpec  = $set;
     $this->protocol = trim($protocol, '/');
     $this->host     = trim($host, '/');
@@ -28,12 +34,7 @@ class OaiCollection {
   }
 
   public function identifiers() {
-    $recs = $this->endpoint->listIdentifiers('oai_dc', NULL, NULL, $this->setSpec);
-    return $recs;
-  }
-
-  public function records() {
-    $recs = $this->endpoint->listRecords('oai_dc', NULL, NULL, $this->setSpec);
+    $recs = $this->endpoint->listIdentifiers('mods', $this->since, NULL, $this->setSpec);
     return $recs;
   }
 

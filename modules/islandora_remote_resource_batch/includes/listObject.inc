@@ -54,6 +54,7 @@ class IslandoraRemoteResourceDoraListBatchObject extends IslandoraBatchObject {
      * Assemble the base datastreams.
      */
     public function batchProcess() {
+        drush_log(sprintf("Processing %s", $this->url), 'ok');
         module_load_include('inc', 'islandora_remote_resource_batch', 'includes/utilities');
         // OBJ datastream.
         $obj = $this->constructDatastream('OBJ', 'M');
