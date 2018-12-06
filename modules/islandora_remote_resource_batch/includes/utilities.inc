@@ -48,7 +48,7 @@ function islandora_remote_resource_batch_apply_xslt($xslt, $input_xml, $params =
     $xsl_doc = new DOMDocument();
     $xsl_doc->loadXML($xslt);
     $xml_doc = new DOMDocument();
-    $xml_doc->loadXML($input_xml);
+    $xml_doc->loadXML(mb_convert_encoding($input_xml, 'HTML-ENTITIES', 'UTF-8'));
     $xslt_proc = new XSLTProcessor();
     $xslt_proc->importStylesheet($xsl_doc);
     if (count($params)) {

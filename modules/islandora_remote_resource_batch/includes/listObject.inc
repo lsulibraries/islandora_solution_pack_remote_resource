@@ -14,12 +14,13 @@ class IslandoraRemoteResourceDoraListBatchObject extends IslandoraBatchObject {
         $this->preprocessorParameters = $parameters;
     }
 
-    private function getDSurl($dsid) {
-        return sprintf('%s/datastream/%s/view', $this->url, $dsid);
+    protected function getDSurl($dsid) {
+      return sprintf('%s/datastream/%s/view', $this->url, $dsid);
     }
 
     protected function getRemoteDatastream($dsid) {
         $url = $this->getDSurl($dsid);
+        drush_log($url,'warning');
         try {
             $raw = file_get_contents($url);
         } catch (Exception $e) {
@@ -53,6 +54,7 @@ class IslandoraRemoteResourceDoraListBatchObject extends IslandoraBatchObject {
      * Assemble the base datastreams.
      */
     public function batchProcess() {
+        drush_log(sprintf("Processing %s", $this->url), 'ok');
         module_load_include('inc', 'islandora_remote_resource_batch', 'includes/utilities');
         // OBJ datastream.
         $obj = $this->constructDatastream('OBJ', 'M');
@@ -61,20 +63,7 @@ class IslandoraRemoteResourceDoraListBatchObject extends IslandoraBatchObject {
         $obj->setContentFromString($this->url, FALSE);
         $this->ingestDatastream($obj);
 
-        // MODS, then from it DC, datastreams, if we have files named x.MODS.xml.
-        $mods = $this->getMods();
-        if ($mods) {
-            $this->ingestDatastream($mods);
-            $path_to_mods_to_dc_xsl = drupal_get_path('module', 'islandora_batch') . '/transforms/mods_to_dc.xsl';
-            $mods_to_dc_xsl = file_get_contents($path_to_mods_to_dc_xsl);
-            $dc_xml = islandora_remote_resource_batch_apply_xslt($mods_to_dc_xsl, $mods->content);
-            $dc = $this->getDcFromMods($dc_xml);
-            if ($dc) {
-                $this->ingestDatastream($dc);
-            }
-        } else {
-            return ISLANDORA_BATCH_STATE__ERROR;
-        }
+        $this->ingestMetadata();
 
         $this->label = islandora_solution_pack_remote_resource_get_label_from_dc($this['DC']->content);
 
@@ -87,6 +76,23 @@ class IslandoraRemoteResourceDoraListBatchObject extends IslandoraBatchObject {
 
         // Indicate that this object is ready to be ingested.
         return ISLANDORA_BATCH_STATE__DONE;
+    }
+
+    protected function ingestMetadata() {
+      // MODS, then from it DC, datastreams, if we have files named x.MODS.xml.
+      $mods = $this->getMods();
+      if ($mods) {
+          $this->ingestDatastream($mods);
+          $path_to_mods_to_dc_xsl = drupal_get_path('module', 'islandora_batch') . '/transforms/mods_to_dc.xsl';
+          $mods_to_dc_xsl = file_get_contents($path_to_mods_to_dc_xsl);
+          $dc_xml = islandora_remote_resource_batch_apply_xslt($mods_to_dc_xsl, $mods->content);
+          $dc = $this->buildMetadataDatastream($dc_xml, 'DC');
+          if ($dc) {
+              $this->ingestDatastream($dc);
+          }
+      } else {
+          return ISLANDORA_BATCH_STATE__ERROR;
+      }
     }
 
     /**
@@ -111,7 +117,7 @@ class IslandoraRemoteResourceDoraListBatchObject extends IslandoraBatchObject {
      *   A datastream object for the thumbnail, or FALSE if no datastream
      *   was created.
      */
-    private function getTn() {
+    protected function getTn() {
         $fetched = FALSE;
         $url = $this->getDSurl('TN');
         try {
@@ -182,17 +188,21 @@ EOQ;
     /**
      * Generates a DC datastream from MODS XML.
      *
-     * @param string $dc_xml
+     * @param string $xml
      *   The serialized DC XML.
      *
      * @return object
      *   The DC datastream, ready for ingestion.
      */
-    private function getDcFromMods($dc_xml) {
-        $dc = $this->constructDatastream('DC', 'M');
-        $dc->mimetype = 'application/xml';
-        $dc->label = 'DC Record';
-        $dc->setContentFromString($dc_xml);
-        return $dc;
+    protected function buildMetadataDatastream($xml, $dsid) {
+      if (!in_array($dsid, ['DC', 'MODS'])) {
+        throw new Exception("Cannot use this method to create metadata datastreams other than DC or MODS.");
+      }
+      $ds_label = $dsid == 'DC' ? 'DC Record' : 'MODS Record';
+      $ds = $this->constructDatastream($dsid, 'M');
+      $ds->mimetype = 'application/xml';
+      $ds->label = $ds_label;
+      $ds->setContentFromString($xml);
+      return $ds;
     }
 }
